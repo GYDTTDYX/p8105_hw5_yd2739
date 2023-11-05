@@ -88,7 +88,7 @@ file_info_pivoted|>
   facet_grid(~arm)
 ```
 
-In this plot, we could see that the expirimental group have overall increasing trend during the expiriment period. 
+In this plot, we could see that the expirimental group have overall increasing trend during the experiment period. 
 
 ## Problem 3
 ```{r}
