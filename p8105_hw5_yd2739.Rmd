@@ -113,7 +113,7 @@ simulation = function(mu) {
   t(results)
 }
 
-five_sim_df = simulation(5)
+five_sim_df = simulation(0)
 
 sim_output = vector("list", length = 6)
 
