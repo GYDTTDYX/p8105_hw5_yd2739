@@ -1,0 +1,96 @@
+---
+title: "p8105_hw5_yd2739"
+author: "Yuxuan Du"
+date: "2023-11-05"
+output: github_document
+---
+
+## Problem 1
+```{r}
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+homicides_data = read_csv('https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv')
+
+homicides_summary = homicides_data|>
+  mutate(city_state = paste(city, state, sep = ", "))|>
+  group_by(city_state)|>
+  summarise(
+    total_homicides = n(),
+    unsolved_homicides = sum(disposition %in% c("Closed without arrest", "Open/No arrest"))
+  )
+```
+
+```{r}
+baltimore_data = homicides_summary|>
+  subset(city_state == "Baltimore, MD")
+
+baltimore_prop_test = prop.test(pull(baltimore_data, unsolved_homicides), pull(baltimore_data, total_homicides))|>
+  broom::tidy()
+
+baltimore_est_prop = baltimore_prop_test|>
+  pull(estimate)
+
+
+baltimore_CI = baltimore_prop_test|>
+  subset(select = c(conf.low, conf.high))
+```
+
+```{r}
+city_estimates = homicides_summary|>
+  mutate(
+    prop_test = map2(unsolved_homicides, total_homicides, ~prop.test(.x, .y)),
+    tidy_test = map(prop_test, broom::tidy)
+  )|>
+  unnest(tidy_test)|>
+  subset(select = c(city_state, estimate, conf.low, conf.high))
+
+ggplot(city_estimates, aes(x = reorder(city_state, estimate), y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
+  coord_flip() +
+  labs(x = "City", y = "Proportion of Unsolved Homicides", title = "Proportion of Unsolved Homicides by City") +
+  theme_minimal()
+```
+
+## Problem 2
+```{r}
+file_names = list.files(path = "data", pattern = "*.csv", full.names = TRUE)
+
+file_info = data_frame(file_name = file_names)
+
+file_info = file_info |>
+  mutate(data = map(file_name, read_csv))|>
+  unnest()|>
+  mutate(ID = substring(file_name, 10, 11))|>
+  mutate(arm = substring(file_name, 6, 8))|>
+  subset(select = -c(file_name))|>
+  relocate(arm, ID)
+
+file_info_pivoted = file_info|>
+  pivot_longer(cols = starts_with("week"), names_to = "week", values_to = "value")|>
+  mutate(week = as.numeric(substring(week, 6,6)))
+
+file_info_pivoted|>
+  group_by(arm, ID)|>
+  ggplot(aes(x = week, y = value, color = interaction(arm, ID)))+
+  geom_line()
+```
+It looks hard to interpret. So I decide to use facet grid to separate different arm. 
+
+```{r}
+file_info_pivoted|>
+  group_by(arm, ID)|>
+  ggplot(aes(x = week, y = value, color = interaction(arm, ID)))+
+  geom_line()+
+  facet_grid(~arm)
+```
+
+In this plot, we could see that the expirimental group have overall increasing trend during the expiriment period. 
+
+## Problem 3
+```{r}
+
+```
