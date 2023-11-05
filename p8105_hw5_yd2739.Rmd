@@ -5,12 +5,12 @@ date: "2023-11-05"
 output: github_document
 ---
 
-## Problem 1
 ```{r}
 library(tidyverse)
 library(ggplot2)
 ```
 
+## Problem 1
 ```{r}
 homicides_data = read_csv('https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv')
 
@@ -56,7 +56,9 @@ ggplot(city_estimates, aes(x = reorder(city_state, estimate), y = estimate)) +
 ```
 
 ## Problem 2
-```{r}
+
+First, we use list.files to create list of file names, and use map to iterate through the list and read all data into DF. Than we unnest the DF and change format of ID and arm. After that, the DF was pivoted for further analysis. 
+```{r, error=FALSE, message=FALSE, warning=FALSE}
 file_names = list.files(path = "data", pattern = "*.csv", full.names = TRUE)
 
 file_info = data_frame(file_name = file_names)
@@ -72,13 +74,15 @@ file_info = file_info |>
 file_info_pivoted = file_info|>
   pivot_longer(cols = starts_with("week"), names_to = "week", values_to = "value")|>
   mutate(week = as.numeric(substring(week, 6,6)))
+```
 
+```{r}
 file_info_pivoted|>
   group_by(arm, ID)|>
   ggplot(aes(x = week, y = value, color = interaction(arm, ID)))+
   geom_line()
 ```
-It looks hard to interpret. So I decide to use facet grid to separate different arm. 
+This plot looks hard to interpret. So I decide to use facet grid to separate different arm. 
 
 ```{r}
 file_info_pivoted|>
@@ -92,5 +96,59 @@ In this plot, we could see that the expirimental group have overall increasing t
 
 ## Problem 3
 ```{r}
+set.seed(1234)
+n = 30
+sigma = 5
+alpha = 0.05
 
+dataset = data.frame(x = 1:10)
+
+simulation = function(mu) {
+  results = replicate(5000, {
+    sample = rnorm(n, mean = mu, sd = sigma)
+    test_result = t.test(sample, mu = 0)
+    tidy_test_result = broom::tidy(test_result)
+    c(estimate = pull(tidy_test_result, estimate), p.value = pull(tidy_test_result, p.value), mu)
+  })
+  t(results)
+}
+
+five_sim_df = simulation(5)
+
+sim_output = vector("list", length = 6)
+
+for (i in 1:6){
+  sim_output[[i]] = simulation(i)
+}
 ```
+
+```{r}
+sim_output_df = data.frame(do.call(rbind, sim_output))|>
+  rename(mu = V3)|>
+  mutate(reject = ifelse(p.value < 0.025 | p.value > 0.975, 1, 0))
+ 
+sim_output_df|>
+  group_by(mu)|>
+  summarise(mean_rej = mean(reject))|>
+  ggplot(aes(x = factor(mu), y = mean_rej))+
+  geom_bar(stat = "identity", fill = "blue")
+```
+We could see that as the mu increase, the rejection rate increase. So the power increase as effect size increase. 
+
+```{r}
+sim_output_df|>
+  group_by(mu)|>
+  summarise(est_mu = mean(estimate.mean.of.x))|>
+  ggplot(aes(x = mu, y = est_mu))+
+  geom_line()
+```
+
+```{r}
+sim_output_df|>
+  subset(reject == 1)|>
+  group_by(mu)|>
+  summarise(est_mu = mean(estimate.mean.of.x))|>
+  ggplot(aes(x = mu, y = est_mu))+
+  geom_line()
+```
+No, the two lines does not approximately equal. This is because the group rejected H0 does not contains 0 in their 95% CI, while the group failed to reject H0 will contains 0 in their 95% CI, this makes the the group reject H0 have hight average mean. 
