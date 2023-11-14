@@ -89,7 +89,8 @@ file_info_pivoted|>
   group_by(arm, ID)|>
   ggplot(aes(x = week, y = value, group = interaction(arm, ID), color = arm))+
   geom_line()+
-  facet_grid(~arm)
+  facet_grid(~arm)+
+  labs(x = "Week", y = "Value", title = "Observation of subjects over time")
 ```
 
 In this plot, we could see that the expirimental group have overall increasing trend during the experiment period. 
@@ -106,7 +107,7 @@ simulation = function(mu) {
     sample = rnorm(n, mean = mu, sd = sigma)
     test_result = t.test(sample, mu = 0)
     tidy_test_result = broom::tidy(test_result)
-    c(estimate = pull(tidy_test_result, estimate), p.value = pull(tidy_test_result, p.value), mu)
+    c(estimate = pull(tidy_test_result, estimate), p.value = pull(tidy_test_result, p.value), true_mu = mu)
   })
   t(results)
 }
@@ -125,32 +126,41 @@ for (i in 1:6){
 
 ```{r}
 sim_output_df = data.frame(do.call(rbind, sim_output))|>
-  rename(mu = V3)|>
   mutate(reject = ifelse(p.value < 0.025 | p.value > 0.975, 1, 0))
  
 sim_output_df|>
-  group_by(mu)|>
+  group_by(true_mu)|>
   summarise(mean_rej = mean(reject))|>
-  ggplot(aes(x = factor(mu), y = mean_rej))+
-  geom_bar(stat = "identity", fill = "blue")
+  ggplot(aes(x = factor(true_mu), y = mean_rej))+
+  geom_bar(stat = "identity", fill = "blue")+
+  labs(x = "true mu", y = "mean rejtection rate", title = "bar plot of change of rejection rate when true mu change")
+
+sim_output_df|>
+  group_by(true_mu)|>
+  summarise(mean_rej = mean(reject))|>
+  ggplot(aes(x = true_mu, y = mean_rej))+
+  geom_line()+
+  labs(x = "true mu", y = "mean rejtection rate", title = "line plot of change of rejection rate when true mu change")
 ```
-We could see that as the mu increase, the rejection rate increase. So the power increase as effect size increase. 
+We could see that as the true_mu increase, the rejection rate increase. So the power increase as effect size increase. 
 
 ```{r}
 sim_output_df|>
-  group_by(mu)|>
+  group_by(true_mu)|>
   summarise(est_mu = mean(estimate.mean.of.x))|>
-  ggplot(aes(x = mu, y = est_mu))+
-  geom_line()
+  ggplot(aes(x = true_mu, y = est_mu))+
+  geom_line()+
+  labs(x = "true mu", y = "estimated mu", title = "True mu vs. Estimated mu")
 ```
 
 ```{r}
 sim_output_df|>
   subset(reject == 1)|>
-  group_by(mu)|>
+  group_by(true_mu)|>
   summarise(est_mu = mean(estimate.mean.of.x))|>
-  ggplot(aes(x = mu, y = est_mu))+
+  ggplot(aes(x = true_mu, y = est_mu))+
   geom_line()+
-  ylim(1, 6)
+  ylim(1, 6)+
+  labs(x = "true mu", y = "estimated mu", title = "True mu vs. Estimated mu in groups where null hypothesis was rejected")
 ```
 We could observe that two lines does not approximately equal. The second line has higher estimate mu when true mu equals 1, 2, 3. This is because in samples where null is rejected, those sample will have higher estimate mu. (in other word, groups rejected H0 does not contains 0 in their 95% CI while other groups cotains 0 in their 95% CI), this makes the the group reject H0 have hight average mean. 
