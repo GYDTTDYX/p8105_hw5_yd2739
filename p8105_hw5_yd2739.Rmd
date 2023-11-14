@@ -79,7 +79,7 @@ file_info_pivoted = file_info|>
 ```{r}
 file_info_pivoted|>
   group_by(arm, ID)|>
-  ggplot(aes(x = week, y = value, color = interaction(arm, ID)))+
+  ggplot(aes(x = week, y = value, group = interaction(arm, ID), color = arm))+
   geom_line()
 ```
 This plot looks hard to interpret. So I decide to use facet grid to separate different arm. 
@@ -87,7 +87,7 @@ This plot looks hard to interpret. So I decide to use facet grid to separate dif
 ```{r}
 file_info_pivoted|>
   group_by(arm, ID)|>
-  ggplot(aes(x = week, y = value, color = interaction(arm, ID)))+
+  ggplot(aes(x = week, y = value, group = interaction(arm, ID), color = arm))+
   geom_line()+
   facet_grid(~arm)
 ```
@@ -101,8 +101,6 @@ n = 30
 sigma = 5
 alpha = 0.05
 
-dataset = data.frame(x = 1:10)
-
 simulation = function(mu) {
   results = replicate(5000, {
     sample = rnorm(n, mean = mu, sd = sigma)
@@ -114,10 +112,13 @@ simulation = function(mu) {
 }
 
 zero_sim_df = simulation(0)
+head(zero_sim_df)
+```
 
-sim_output = vector("list", length = 7)
+```{r}
+sim_output = vector("list", length = 6)
 
-for (i in 0:6){
+for (i in 1:6){
   sim_output[[i+1]] = simulation(i)
 }
 ```
@@ -149,6 +150,7 @@ sim_output_df|>
   group_by(mu)|>
   summarise(est_mu = mean(estimate.mean.of.x))|>
   ggplot(aes(x = mu, y = est_mu))+
-  geom_line()
+  geom_line()+
+  ylim(1, 6)
 ```
-No, the two lines does not approximately equal. This is because the group rejected H0 does not contains 0 in their 95% CI, while the group failed to reject H0 will contains 0 in their 95% CI, this makes the the group reject H0 have hight average mean. 
+We could observe that two lines does not approximately equal. The second line has higher estimate mu when true mu equals 1, 2, 3. This is because in samples where null is rejected, those sample will have higher estimate mu. (in other word, groups rejected H0 does not contains 0 in their 95% CI while other groups cotains 0 in their 95% CI), this makes the the group reject H0 have hight average mean. 
